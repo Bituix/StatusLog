@@ -1,4 +1,4 @@
-# Z-Status Framework — Claude Code Project Memory
+# Status Framework — Claude Code Project Memory
 
 ## What this is
 
@@ -11,57 +11,66 @@ A custom SAP S/4HANA **state machine framework** — a modern, RAP-native replac
 ## Package & Naming Conventions
 
 ### DDIC Tables — prefix `ZCASTAT_*`
+
 > 16-character DDIC limit drove rejection of `ZCA_STATUS_*`
 
-| Table | Purpose |
-|---|---|
-| `ZCASTAT_TYPE` | Status type header (the state machine definition) |
-| `ZCASTAT_CODE` | Status codes per type (nodes in the state machine) |
-| `ZCASTAT_ACTION` | Named user actions / allowed transitions |
-| `ZCASTAT_FLWNODE` | Flow visualization nodes (Fiori ProcessFlow) |
-| `ZCASTAT_FLWCONN` | Flow visualization connections |
-| `ZCASTAT_LOG` | Status change audit log |
+| Table             | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `ZCASTAT_TYPE`    | Status type header (the state machine definition)  |
+| `ZCASTAT_CODE`    | Status codes per type (nodes in the state machine) |
+| `ZCASTAT_ACTION`  | Named user actions / allowed transitions           |
+| `ZCASTAT_FLWNODE` | Flow visualization nodes (Fiori ProcessFlow)       |
+| `ZCASTAT_FLWCONN` | Flow visualization connections                     |
+| `ZCASTAT_LOG`     | Status change audit log                            |
 
 Draft table for flow nodes: `ZCASTAT_FLWNOD_D` (E dropped to hit exactly 16 chars).
 
 ### CDS Views — layer prefix before functional area
-| Prefix | Layer | Example |
-|---|---|---|
-| `ZI_CA_*` | Interface (base) views | `ZI_CA_StatusType` |
+
+| Prefix    | Layer                       | Example            |
+| --------- | --------------------------- | ------------------ |
+| `ZI_CA_*` | Interface (base) views      | `ZI_CA_StatusType` |
 | `ZC_CA_*` | Projection (consumer) views | `ZC_CA_StatusType` |
 
 This matches SAP standard naming — layer type (`I`/`C`) comes before functional area (`CA`).
 
 ### Core Class
-`ZCL_CA_StatusManager` — the central business logic engine.
+
+`ZCL_CA_STATUS_MANAGER` — the central business logic engine.
 
 ### Example Status Codes
-| Code | Label | Flag |
-|---|---|---|
-| `SUBM` | Submitted | `is_initial = true` |
-| `PNDG` | Pending Approval | — |
-| `APPR` | Approved | — |
-| `RJCT` | Rejected | — |
-| `REVSN` | In Revision | — |
-| `CLOS` | Closed | `is_final = true` |
+
+| Code    | Label            | Flag                |
+| ------- | ---------------- | ------------------- |
+| `SUBM`  | Submitted        | `is_initial = true` |
+| `PNDG`  | Pending Approval | —                   |
+| `APPR`  | Approved         | —                   |
+| `RJCT`  | Rejected         | —                   |
+| `REVSN` | In Revision      | —                   |
+| `CLOS`  | Closed           | `is_final = true`   |
 
 ---
 
 ## Key Design Decisions
 
 ### Core entity is `StatusType`, not `StatusWorkflow`
+
 "WorkflowType overpromises" — the framework is a state machine, not a workflow engine. This name propagates to all objects: table `ZCASTAT_TYPE`, CDS view `ZI_CA_StatusType`, etc.
 
 ### `ZCASTAT_ACTION` rows = named user actions
+
 Rows in the action table represent **named transitions a user can trigger** (e.g. "Submit for Approval"), not abstract graph edges. This distinction matters for UI action binding.
 
 ### Re-entry via flow node decoupling
+
 When a document revisits a status (e.g. rejected → revised → pending again), `ZCASTAT_FLWNODE` decouples **visual position** from **business status**. The same `status_code` maps to multiple flow nodes (`N_PNDG`, `N_PNDG2`) at different `column_position` values. `ResolveFlwNodeStates` counts visits per status code and picks the Nth configured node. This avoids custom UI development — the standard Fiori ProcessFlow control renders DAGs (no backward arrows natively).
 
 ### `FLW` abbreviation for flow tables
+
 `ZCASTAT_FLWNODE`, `ZCASTAT_FLWCONN` — fits within the 16-character limit.
 
 ### MANDT handling
+
 Removed from all CDS view key projections and association ON conditions. CDS runtime handles MANDT filtering transparently — explicit MANDT in keys is redundant and incorrect in CDS.
 
 ---
@@ -69,9 +78,11 @@ Removed from all CDS view key projections and association ON conditions. CDS run
 ## Timestamp Strategy
 
 ### Config tables (`ZCASTAT_TYPE`, `ZCASTAT_CODE`, `ZCASTAT_ACTION`, `ZCASTAT_FLWNODE`, `ZCASTAT_FLWCONN`)
+
 Two fields: `created_at UTCLONG`, `changed_at UTCLONG`.
 
 ### Log table (`ZCASTAT_LOG`)
+
 Three fields — deliberate decision for SE16N readability:
 | Field | Type | Purpose |
 |---|---|---|
@@ -85,10 +96,10 @@ Three fields — deliberate decision for SE16N readability:
 
 ## Transport & Content Flags
 
-| Object group | `CONTFLAG` | `TABART` |
-|---|---|---|
-| All 6 customizing tables | `C` | `CUST` |
-| Log table `ZCASTAT_LOG` | `A` | `APPL0` |
+| Object group             | `CONTFLAG` | `TABART` |
+| ------------------------ | ---------- | -------- |
+| All 6 customizing tables | `C`        | `CUST`   |
+| Log table `ZCASTAT_LOG`  | `A`        | `APPL0`  |
 
 ---
 
@@ -96,19 +107,20 @@ Three fields — deliberate decision for SE16N readability:
 
 Type `INT1`. Used by RAP/Fiori for **automatic semantic coloring** — no custom UI code needed.
 
-| Value | Meaning |
-|---|---|
-| `0` | Neutral |
-| `1` | Negative (red) |
-| `2` | Critical (orange) |
-| `3` | Positive (green) |
-| `5` | Information (blue) |
+| Value | Meaning            |
+| ----- | ------------------ |
+| `0`   | Neutral            |
+| `1`   | Negative (red)     |
+| `2`   | Critical (orange)  |
+| `3`   | Positive (green)   |
+| `5`   | Information (blue) |
 
 ---
 
-## `ZCL_CA_StatusManager` — `ChangeStatus` Method
+## `ZCL_CA_STATUS_MANAGER` — `ChangeStatus` Method
 
 ### Signature (smart auto-resolution)
+
 ```abap
 METHOD ChangeStatus
   IMPORTING
@@ -122,6 +134,7 @@ METHOD ChangeStatus
 ```
 
 ### Resolution logic
+
 - `iv_from_status` omitted → reads last `ZCASTAT_LOG` entry for current status
 - `iv_to_status` omitted → auto-resolves target when **exactly one** active action exists for the current status
 - Two or more valid targets → raises `AMBIGUOUS_ACTION` exception (caller must specify `iv_action_code` or `iv_to_status`)
@@ -146,7 +159,7 @@ z-status-framework/
 │   │   └── structures/   ← shared ABAP type definitions
 │   ├── cds/              ← ZI_CA_* interface views, ZC_CA_* projections
 │   ├── bdef/             ← RAP behavior definitions + implementations
-│   └── classes/          ← ZCL_CA_StatusManager, ZCX_CA_StatusError, helpers
+│   └── classes/          ← ZCL_CA_STATUS_MANAGER, ZCX_CA_StatusError, helpers
 ├── test/                 ← ABAP Unit test classes, fixture data
 ├── transport/            ← Transport request sequence documentation
 ├── docs/

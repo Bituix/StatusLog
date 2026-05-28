@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DD04V>
+      <ROLLNAME>ZCA_DE_ACTION_CODE</ROLLNAME>
+      <DDLANGUAGE>E</DDLANGUAGE>
+      <DATATYPE>CHAR</DATATYPE>
+      <LENG>000020</LENG>
+      <DDTEXT>Action Code</DDTEXT>
+      <REPTEXT>Action Code</REPTEXT>
+      <SCRTEXT_S>Action</SCRTEXT_S>
+      <SCRTEXT_M>Action Code</SCRTEXT_M>
+      <SCRTEXT_L>Action Code</SCRTEXT_L>
+    </DD04V>
+  </asx:values>
+</asx:abap>

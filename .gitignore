@@ -1,0 +1,10 @@
+# abapGit local config overrides
+.abapgit_local.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp

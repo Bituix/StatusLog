@@ -21,7 +21,7 @@ define view entity ZI_CA_StatusLog
       log.from_status  as FromStatus,
       log.to_status    as ToStatus,
       log.action_code  as ActionCode,
-      log.remark       as Remark,
+      log.comments     as Comments,
       log.changed_by   as ChangedBy,
       log.changed_at   as ChangedAt,
       log.changed_date as ChangedDate,

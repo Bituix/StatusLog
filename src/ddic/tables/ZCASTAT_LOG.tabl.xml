@@ -85,11 +85,11 @@
       </DD03P>
       <DD03P>
         <TABNAME>ZCASTAT_LOG</TABNAME>
-        <FIELDNAME>REMARK</FIELDNAME>
+        <FIELDNAME>COMMENTS</FIELDNAME>
         <ADMINFIELD>0</ADMINFIELD>
         <DATATYPE>CHAR</DATATYPE>
         <LENG>000255</LENG>
-        <DDTEXT>User Remark / Comment</DDTEXT>
+        <DDTEXT>User Comment</DDTEXT>
         <POSITION>0009</POSITION>
       </DD03P>
       <DD03P>
