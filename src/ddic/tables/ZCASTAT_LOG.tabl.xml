@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DD02V>
+      <TABNAME>ZCASTAT_LOG</TABNAME>
+      <DDLANGUAGE>E</DDLANGUAGE>
+      <TABCLASS>TRANSP</TABCLASS>
+      <CLIDEP>X</CLIDEP>
+      <DDTEXT>Status Framework: Status Transition Log (Append-Only)</DDTEXT>
+      <CONTFLAG>A</CONTFLAG>
+      <TABART>APPL0</TABART>
+    </DD02V>
+    <DD03P_TABLE>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>MANDT</FIELDNAME>
+        <KEYFLAG>X</KEYFLAG>
+        <ROLLNAME>MANDT</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <NOTNULL>X</NOTNULL>
+        <POSITION>0001</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>LOG_UUID</FIELDNAME>
+        <KEYFLAG>X</KEYFLAG>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DATATYPE>RAW</DATATYPE>
+        <LENG>000016</LENG>
+        <NOTNULL>X</NOTNULL>
+        <DDTEXT>Log Entry UUID (SYSUUID_16, PK)</DDTEXT>
+        <POSITION>0002</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>LOG_NUMBER</FIELDNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DATATYPE>INT8</DATATYPE>
+        <LENG>000019</LENG>
+        <DDTEXT>Log Number (best-effort, 0=unavailable)</DDTEXT>
+        <POSITION>0003</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>STATUS_TYPE</FIELDNAME>
+        <ROLLNAME>ZCA_DE_STAT_TYPE</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <NOTNULL>X</NOTNULL>
+        <POSITION>0004</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>OBJECT_KEY</FIELDNAME>
+        <ROLLNAME>ZCA_DE_STAT_OBJ_KEY</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <NOTNULL>X</NOTNULL>
+        <DDTEXT>Concatenated Business Object Key</DDTEXT>
+        <POSITION>0005</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>FROM_STATUS</FIELDNAME>
+        <ROLLNAME>ZCA_DE_STAT_CODE</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DDTEXT>Source Status (empty on initial CREATE)</DDTEXT>
+        <POSITION>0006</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>TO_STATUS</FIELDNAME>
+        <ROLLNAME>ZCA_DE_STAT_CODE</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <NOTNULL>X</NOTNULL>
+        <DDTEXT>Target Status</DDTEXT>
+        <POSITION>0007</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>ACTION_CODE</FIELDNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DATATYPE>CHAR</DATATYPE>
+        <LENG>000020</LENG>
+        <DDTEXT>Action Code that triggered transition</DDTEXT>
+        <POSITION>0008</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>REMARK</FIELDNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DATATYPE>CHAR</DATATYPE>
+        <LENG>000255</LENG>
+        <DDTEXT>User Remark / Comment</DDTEXT>
+        <POSITION>0009</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>CHANGED_BY</FIELDNAME>
+        <ROLLNAME>SYUNAME</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DDTEXT>User who triggered the transition</DDTEXT>
+        <POSITION>0010</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>CHANGED_AT</FIELDNAME>
+        <ROLLNAME>UTCLONG</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DDTEXT>Transition Timestamp (UTC)</DDTEXT>
+        <POSITION>0011</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>CHANGED_DATE</FIELDNAME>
+        <ROLLNAME>SYDATUM</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DDTEXT>Transition Date (local, SE16N readable)</DDTEXT>
+        <POSITION>0012</POSITION>
+      </DD03P>
+      <DD03P>
+        <TABNAME>ZCASTAT_LOG</TABNAME>
+        <FIELDNAME>CHANGED_TIME</FIELDNAME>
+        <ROLLNAME>SYUZEIT</ROLLNAME>
+        <ADMINFIELD>0</ADMINFIELD>
+        <DDTEXT>Transition Time (local, SE16N readable)</DDTEXT>
+        <POSITION>0013</POSITION>
+      </DD03P>
+    </DD03P_TABLE>
+  </asx:values>
+</asx:abap>

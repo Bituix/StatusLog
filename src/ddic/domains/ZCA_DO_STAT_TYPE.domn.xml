@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DD01V>
+      <DOMNAME>ZCA_DO_STAT_TYPE</DOMNAME>
+      <DDLANGUAGE>E</DDLANGUAGE>
+      <DATATYPE>CHAR</DATATYPE>
+      <LENG>000040</LENG>
+      <OUTPUTLEN>000040</OUTPUTLEN>
+      <LOWERCASE>X</LOWERCASE>
+      <DDTEXT>Status Framework: Status Type (CHAR 40)</DDTEXT>
+    </DD01V>
+  </asx:values>
+</asx:abap>

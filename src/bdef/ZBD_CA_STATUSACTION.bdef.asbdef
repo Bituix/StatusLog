@@ -1,0 +1,29 @@
+managed implementation in class zbp_ca_statusaction unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_CA_StatusAction alias StatusAction
+  persistent table zcastat_action
+  draft table      zcastat_action_d
+  lock master total etag ChangedAt
+  authorization master ( global )
+  etag master ChangedAt
+{
+  create; update; delete;
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare;
+
+  field ( mandatory ) StatusType, FromStatus, ToStatus, ActionCode, ActionName;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  determination stamp_audit_fields on modify { create; update; }
+
+  validation ValidateNoSelfLoop                     on save { create; update; }
+  validation ValidateFromAndTargetStatusExist       on save { create; update; }
+  validation ValidateNoOutgoingFromFinalStatus      on save { create; update; }
+  validation ValidateAuthorizationObject            on save { create; update; }
+  validation validate_no_log_reference              on save { create; update; delete; }
+}

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <VSEOINTERF>
+      <CLSNAME>ZIFI_CA_STAT_TRANSITION</CLSNAME>
+      <LANGU>E</LANGU>
+      <DESCRIPT>Status Framework: BAdI Interface for Transition Extension</DESCRIPT>
+      <STATE>1</STATE>
+      <UNICODE>X</UNICODE>
+    </VSEOINTERF>
+  </asx:values>
+</asx:abap>

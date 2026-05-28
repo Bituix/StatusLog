@@ -1,0 +1,80 @@
+managed implementation in class zbp_ca_statustype unique;
+strict ( 2 );
+with draft;
+
+define behavior for ZI_CA_StatusType alias StatusType
+  persistent table zcastat_type
+  draft table      zcastat_type_d
+  lock master total etag ChangedAt
+  authorization master ( global )
+  etag master ChangedAt
+{
+  create; update; delete;
+  draft action Edit;
+  draft action Activate optimized;
+  draft action Discard;
+  draft action Resume;
+  draft determine action Prepare;
+
+  field ( mandatory ) StatusType;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  determination stamp_audit_fields on modify { create; update; }
+
+  association _StatusCode { create; with draft; }
+  association _FlwNode    { create; with draft; }
+  association _FlwConn    { create; with draft; }
+}
+
+define behavior for ZI_CA_StatusCode alias StatusCode
+  persistent table zcastat_code
+  draft table      zcastat_code_d
+  lock dependent by _StatusType
+  authorization dependent by _StatusType
+  etag dependent by _StatusType
+{
+  update; delete;
+
+  field ( mandatory ) StatusType, StatusCode, StatusText;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  determination stamp_audit_fields on modify { create; update; }
+
+  validation validate_no_log_reference on save { create; update; delete; }
+
+  association _StatusType { with draft; }
+}
+
+define behavior for ZI_CA_FlwNode alias FlowNode
+  persistent table zcastat_flwnode
+  draft table      zcastat_flwnod_d
+  lock dependent by _StatusType
+  authorization dependent by _StatusType
+  etag dependent by _StatusType
+{
+  update; delete;
+
+  field ( mandatory ) StatusType, NodeId, StatusCode, NodeText;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  determination stamp_audit_fields on modify { create; update; }
+
+  validation validate_no_log_reference on save { create; update; delete; }
+
+  association _StatusType { with draft; }
+}
+
+define behavior for ZI_CA_FlwConn alias FlowConnection
+  persistent table zcastat_flwconn
+  draft table      zcastat_flwcn_d
+  lock dependent by _StatusType
+  authorization dependent by _StatusType
+  etag dependent by _StatusType
+{
+  update; delete;
+
+  field ( mandatory ) StatusType, FromNodeId, ToNodeId;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  association _StatusType { with draft; }
+}

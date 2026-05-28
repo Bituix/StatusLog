@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DD04V>
+      <ROLLNAME>ZCA_DE_STAT_TYPE_DESC</ROLLNAME>
+      <DDLANGUAGE>E</DDLANGUAGE>
+      <DATATYPE>CHAR</DATATYPE>
+      <LENG>000100</LENG>
+      <DDTEXT>Status Type Description</DDTEXT>
+      <REPTEXT>Description</REPTEXT>
+      <SCRTEXT_S>Description</SCRTEXT_S>
+      <SCRTEXT_M>Status Type Desc.</SCRTEXT_M>
+      <SCRTEXT_L>Status Type Description</SCRTEXT_L>
+    </DD04V>
+  </asx:values>
+</asx:abap>
