@@ -8,8 +8,8 @@ SAP S/4HANA 2022 · ABAP RESTful Application Programming Model
 
 | Object type | Prefix |
 |---|---|
-| Domains | `ZDO_CA_*` |
-| Data elements | `ZDE_CA_*` |
+| Domains | `ZCA_DO_*` |
+| Data elements | `ZCA_DE_*` |
 | Tables / Classes / Interfaces / CDS | `ZCASTAT_*` / `ZCL_CA_*` / `ZIFI_CA_*` / `ZI_CA_*` |
 
 ### Field name changes from previous versions
@@ -29,8 +29,8 @@ SAP S/4HANA 2022 · ABAP RESTful Application Programming Model
 
 | Category | Objects | Count |
 |---|---|---|
-| Domains | ZDO_CA_STAT_TYPE · ZDO_CA_STAT_CODE · ZDO_CA_STAT_OBJ_KEY | 3 |
-| Data elements | ZDE_CA_STAT_TYPE · ZDE_CA_STAT_CODE · ZDE_CA_STAT_TYPE_DESC · ZDE_CA_STAT_OBJ_KEY | 4 |
+| Domains | ZCA_DO_STAT_TYPE · ZCA_DO_STAT_CODE · ZCA_DO_STAT_OBJ_KEY | 3 |
+| Data elements | ZCA_DE_STAT_TYPE · ZCA_DE_STAT_CODE · ZCA_DE_STAT_TYPE_DESC · ZCA_DE_STAT_OBJ_KEY | 4 |
 | Tables | ZCASTAT_TYPE · CODE · ACTION · FLWNODE · FLWCONN · LOG | 6 |
 | Draft stubs | ZCASTAT_TYPE_D · CODE_D · ACTION_D · FLWNOD_D · FLWCN_D | 5 |
 | CDS views | ZI_CA_StatusType · Code · Action · FlwNode · FlwConn · StatusLog | 6 |
@@ -44,8 +44,8 @@ SAP S/4HANA 2022 · ABAP RESTful Application Programming Model
 ## Activation sequence
 
 ### 1. Domains → Data elements (SE11, mass activate)
-`ZDO_CA_STAT_TYPE` → `ZDO_CA_STAT_CODE` → `ZDO_CA_STAT_OBJ_KEY`
-`ZDE_CA_STAT_TYPE` → `ZDE_CA_STAT_CODE` → `ZDE_CA_STAT_TYPE_DESC` → `ZDE_CA_STAT_OBJ_KEY`
+`ZCA_DO_STAT_TYPE` → `ZCA_DO_STAT_CODE` → `ZCA_DO_STAT_OBJ_KEY`
+`ZCA_DE_STAT_TYPE` → `ZCA_DE_STAT_CODE` → `ZCA_DE_STAT_TYPE_DESC` → `ZCA_DE_STAT_OBJ_KEY`
 
 ### 2. Tables (SE11)
 ZCASTAT_TYPE → ZCASTAT_CODE → ZCASTAT_ACTION → ZCASTAT_FLWNODE → ZCASTAT_FLWCONN → ZCASTAT_LOG
@@ -59,14 +59,14 @@ ZCASTAT_TYPE → ZCASTAT_CODE → ZCASTAT_ACTION → ZCASTAT_FLWNODE → ZCASTAT
 
 #### Lock object — SE11: `EZCASTAT_LOCK`
 - Table: ZCASTAT_LOG · Mode: E (exclusive, non-cumulative)
-- Lock fields: `STATUS_TYPE` (ZDE_CA_STAT_TYPE) + `OBJECT_KEY` (ZDE_CA_STAT_OBJ_KEY)
+- Lock fields: `STATUS_TYPE` (ZCA_DE_STAT_TYPE) + `OBJECT_KEY` (ZCA_DE_STAT_OBJ_KEY)
 
 #### Number range — SNRO: `ZCASTAT_NR`
 - Interval 01 · Range 0000000001–9999999999 · Buffered size 10
 
 #### BAdI — SE19: `ESPOT_ZCASTAT` / `BADI_ZCASTAT_TRANSITION`
 - Interface: ZIFI_CA_STAT_TRANSITION
-- Filter: `STATUS_TYPE` typed with **ZDE_CA_STAT_TYPE (CHAR 40)** ← must not use shorter type
+- Filter: `STATUS_TYPE` typed with **ZCA_DE_STAT_TYPE (CHAR 40)** ← must not use shorter type
 - Multiple use: Yes · Default implementation: No
 
 #### Message class — SE91: `ZCASTAT_MSG`
