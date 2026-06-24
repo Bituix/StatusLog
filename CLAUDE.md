@@ -176,19 +176,9 @@ z-status-framework/
 
 ---
 
-## Queued Features (not yet implemented)
+## Queued Features
 
-These are decided but pending development. Pick up from here:
-
-1. **`StatusType` rename propagation** — ensure all objects (tables, CDS, BDEFs, classes, docs) use `StatusType` consistently; purge any leftover `StatusWorkflow` references.
-
-2. **Three-field timestamp on `ZCASTAT_LOG`** — add `changed_date DATS` and `changed_time TIMS` alongside existing `changed_at UTCLONG`.
-
-3. **`criticality INT1` on `ZCASTAT_CODE`** — add field, update CDS interface view annotation, verify Fiori color rendering.
-
-4. **`ChangeStatus` smart auto-resolution** — implement `iv_from_status` and `iv_to_status` as optional; add log-read fallback and `AMBIGUOUS_ACTION` exception.
-
-5. **MANDT cleanup in CDS** — audit all `ZI_CA_*` views and association ON conditions; remove any explicit MANDT references.
+All planned features have been implemented. No pending items.
 
 ---
 
