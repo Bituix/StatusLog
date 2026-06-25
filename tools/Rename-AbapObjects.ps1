@@ -8,7 +8,7 @@
     Runs in dry-run mode by default. Pass -Apply to commit changes.
 
 .PARAMETER Folder
-    Root folder to process.
+    Root folder to process. Defaults to the current directory.
 
 .PARAMETER OldText
     Text to find (in file names and content).
@@ -32,21 +32,25 @@
     Skip file renaming, replace content only.
 
 .EXAMPLE
-    # Preview (dry-run):
+    # Preview current folder (dry-run):
+    .\Rename-AbapObjects.ps1 -OldText zmm_c_ -NewText zc_mm_
+
+.EXAMPLE
+    # Preview a specific folder:
     .\Rename-AbapObjects.ps1 -Folder .\my_download -OldText zmm_c_ -NewText zc_mm_
 
 .EXAMPLE
-    # Apply:
-    .\Rename-AbapObjects.ps1 -Folder .\my_download -OldText zmm_c_ -NewText zc_mm_ -Apply
+    # Apply in current folder:
+    .\Rename-AbapObjects.ps1 -OldText zmm_c_ -NewText zc_mm_ -Apply
 
 .EXAMPLE
     # Also rename folder names:
-    .\Rename-AbapObjects.ps1 -Folder .\my_download -OldText zmm_c_ -NewText zc_mm_ -Apply -RenameDirs
+    .\Rename-AbapObjects.ps1 -OldText zmm_c_ -NewText zc_mm_ -Apply -RenameDirs
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
 param(
-    [Parameter(Mandatory)][string] $Folder,
+    [string] $Folder = (Get-Location).Path,
     [Parameter(Mandatory)][string] $OldText,
     [Parameter(Mandatory)][string] $NewText,
     [switch] $Apply,
@@ -181,6 +185,7 @@ if (-not $NoRename) {
 if (-not $Apply) {
     Write-Host ""
     Write-Host "Dry-run complete. No changes written." -ForegroundColor Yellow
+    Read-Host "`nPress Enter to exit"
     exit 0
 }
 
@@ -206,3 +211,4 @@ if ($renameItems.Count -gt 0) {
 
 Write-Host ""
 Write-Host "Done. $($contentChanges.Count) file(s) updated, $($renameItems.Count) item(s) renamed." -ForegroundColor Green
+Read-Host "`nPress Enter to exit"
