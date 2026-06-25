@@ -65,9 +65,6 @@ $ErrorActionPreference = 'Stop'
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-$comparison = if ($CaseSensitive) { [System.StringComparison]::Ordinal }
-              else                 { [System.StringComparison]::OrdinalIgnoreCase }
-
 function Replace-Text([string]$Text) {
     $idx = $Text.IndexOf($OldText, $comparison)
     while ($idx -ge 0) {
@@ -91,10 +88,20 @@ function Test-BinaryFile([string]$Path) {
     } catch { return $true }
 }
 
+# ── interactive prompts (when not passed as flags) ────────────────────────────
+
+if (-not $CaseSensitive.IsPresent) {
+    $csAnswer = Read-Host "Case sensitive match? (y/n, default n)"
+    if ($csAnswer -match '^y') { $CaseSensitive = $true }
+}
+
+$comparison = if ($CaseSensitive) { [System.StringComparison]::Ordinal }
+              else                 { [System.StringComparison]::OrdinalIgnoreCase }
+
 # ── banner ───────────────────────────────────────────────────────────────────
 
 $root = (Resolve-Path $Folder).Path
-$mode = if ($Apply) { 'APPLY' } else { 'DRY-RUN  (pass -Apply to commit)' }
+$mode = if ($Apply) { 'APPLY' } else { 'DRY-RUN' }
 
 Write-Host ""
 Write-Host "Root  : $root"
