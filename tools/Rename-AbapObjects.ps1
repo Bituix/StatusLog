@@ -184,8 +184,12 @@ if (-not $NoRename) {
 
 if (-not $Apply) {
     Write-Host ""
-    Write-Host "Dry-run complete. No changes written." -ForegroundColor Yellow
-    exit 0
+    $answer = Read-Host "Apply changes? (y/n)"
+    if ($answer -notmatch '^y') {
+        Write-Host "Aborted. No changes written." -ForegroundColor Yellow
+        exit 0
+    }
+    $Apply = $true
 }
 
 Write-Host ""
