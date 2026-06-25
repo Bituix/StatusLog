@@ -185,7 +185,6 @@ if (-not $NoRename) {
 if (-not $Apply) {
     Write-Host ""
     Write-Host "Dry-run complete. No changes written." -ForegroundColor Yellow
-    Read-Host "`nPress Enter to exit"
     exit 0
 }
 
@@ -211,4 +210,3 @@ if ($renameItems.Count -gt 0) {
 
 Write-Host ""
 Write-Host "Done. $($contentChanges.Count) file(s) updated, $($renameItems.Count) item(s) renamed." -ForegroundColor Green
-Read-Host "`nPress Enter to exit"
