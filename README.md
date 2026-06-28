@@ -1,3 +1,30 @@
+
+sap.ui.define([
+    "sap/base/Log"
+    // ... your other dependencies
+], function (Log) {
+    "use strict";
+
+    return {
+        onNavToDisplayApp: async function (sDocNumber) {
+            try {
+                var oCrossAppNav = await sap.ushell.Container.getServiceAsync("CrossApplicationNavigation");
+                oCrossAppNav.toExternal({
+                    target: {
+                        semanticObject: "InboundDelivery",
+                        action: "display"
+                    },
+                    params: {
+                        "DeliveryDocument": sDocNumber
+                    }
+                });
+            } catch (oError) {
+                Log.error("CrossApplicationNavigation failed", oError);
+            }
+        }
+    };
+});
+
 # Status Framework — abapgit Repository (v12)
 
 SAP S/4HANA · ABAP RESTful Application Programming Model
