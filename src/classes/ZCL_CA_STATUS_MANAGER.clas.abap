@@ -80,6 +80,15 @@ CLASS ZCL_CA_STATUS_MANAGER DEFINITION
       RAISING
         zcx_ca_status_error.
 
+    METHODS validate_comment_required
+      IMPORTING
+        iv_status_type TYPE ZCA_DE_stat_type
+        iv_from_status TYPE ZCA_DE_stat_code
+        iv_to_status   TYPE ZCA_DE_stat_code
+        iv_comments    TYPE string OPTIONAL
+      RAISING
+        zcx_ca_status_error.
+
     METHODS write_log_entry
       IMPORTING
         iv_log_uuid    TYPE sysuuid_x16
@@ -153,6 +162,12 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
       iv_status_type = iv_status_type
       iv_from_status = lv_from
       iv_to_status   = lv_to ).
+
+    validate_comment_required(
+      iv_status_type = iv_status_type
+      iv_from_status = lv_from
+      iv_to_status   = lv_to
+      iv_comments    = iv_comments ).
 
     " ⑤ BAdI: blocking pre-check
     DATA lo_badi TYPE REF TO badi_zcastat_transition.
@@ -376,6 +391,26 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
         changed_time = sy-uzeit
       ).
     END-TEST-SEAM.
+  ENDMETHOD.
+
+
+  METHOD validate_comment_required.
+    SELECT SINGLE RequiresComment
+      FROM ZI_CA_StatusAction
+      WHERE StatusType = @iv_status_type
+        AND FromStatus = @iv_from_status
+        AND ToStatus   = @iv_to_status
+        AND IsActive   = @abap_true
+      INTO @DATA(lv_requires).
+
+    IF lv_requires = abap_true AND iv_comments IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_ca_status_error
+        EXPORTING
+          textid      = zcx_ca_status_error=>comment_required
+          status_type = iv_status_type
+          from_status = iv_from_status
+          to_status   = iv_to_status.
+    ENDIF.
   ENDMETHOD.
 
 

@@ -25,7 +25,9 @@ CLASS zcx_ca_status_error DEFINITION
       "& Not authorized for this status type / action
       not_authorized           TYPE sotr_conc VALUE 'ZCASTAT_NOT_AUTHORIZED'     ##NO_TEXT,
       "& Configuration error — no initial status defined for type
-      no_initial_status        TYPE sotr_conc VALUE 'ZCASTAT_NO_INITIAL_STATUS'  ##NO_TEXT.
+      no_initial_status        TYPE sotr_conc VALUE 'ZCASTAT_NO_INITIAL_STATUS'  ##NO_TEXT,
+      "& Comment is mandatory for this transition but was not supplied
+      comment_required         TYPE sotr_conc VALUE 'ZCASTAT_COMMENT_REQUIRED'   ##NO_TEXT.
 
     DATA:
       status_type    TYPE ZCA_DE_stat_type    READ-ONLY,
