@@ -22,6 +22,10 @@ CLASS zbp_ca_statustype DEFINITION
       FOR DETERMINE ON MODIFY
       IMPORTING keys FOR StatusCode~stamp_audit_fields.
 
+    CLASS-METHODS stamp_audit_fields_lane
+      FOR DETERMINE ON MODIFY
+      IMPORTING keys FOR FlowLane~stamp_audit_fields.
+
     CLASS-METHODS stamp_audit_fields_action
       FOR DETERMINE ON MODIFY
       IMPORTING keys FOR StatusAction~stamp_audit_fields.
@@ -134,6 +138,28 @@ CLASS zbp_ca_statustype IMPLEMENTATION.
     ENDLOOP.
     MODIFY ENTITIES OF zi_ca_statustype
       ENTITY statuscode UPDATE FIELDS ( changed_by changed_at )
+      WITH lt_update REPORTED DATA(ls_rep).
+  ENDMETHOD.
+
+
+  METHOD stamp_audit_fields_lane.
+    READ ENTITIES OF zi_ca_statustype
+      ENTITY flowlane FIELDS ( status_type lane_id )
+      WITH CORRESPONDING #( keys )
+      RESULT DATA(lt_lanes).
+
+    DATA lt_update TYPE TABLE FOR UPDATE zi_ca_statustype\\flowlane.
+    LOOP AT lt_lanes INTO DATA(ls_lane).
+      APPEND VALUE #(
+        %tky       = ls_lane-%tky
+        changed_by = sy-uname
+        changed_at = cl_abap_context_info=>get_system_date_time( )
+        %control   = VALUE #( changed_by = if_abap_behv=>mk-on
+                               changed_at = if_abap_behv=>mk-on )
+      ) TO lt_update.
+    ENDLOOP.
+    MODIFY ENTITIES OF zi_ca_statustype
+      ENTITY flowlane UPDATE FIELDS ( changed_by changed_at )
       WITH lt_update REPORTED DATA(ls_rep).
   ENDMETHOD.
 

@@ -6,6 +6,7 @@
 define root view entity ZI_CA_StatusType
   as select from zcastat_type as type
   composition [0..*] of ZI_CA_StatusCode as _StatusCode
+  composition [0..*] of ZI_CA_FlwLane    as _FlwLane
   composition [0..*] of ZI_CA_FlwNode   as _FlwNode
   composition [0..*] of ZI_CA_FlwConn   as _FlwConn
 {
@@ -22,6 +23,7 @@ define root view entity ZI_CA_StatusType
       type.changed_at       as ChangedAt,
 
       _StatusCode,
+      _FlwLane,
       _FlwNode,
       _FlwConn
 }

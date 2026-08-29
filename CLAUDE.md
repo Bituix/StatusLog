@@ -19,6 +19,7 @@ A custom SAP S/4HANA **state machine framework** — a modern, RAP-native replac
 | `ZCASTAT_TYPE`    | Status type header (the state machine definition)  |
 | `ZCASTAT_CODE`    | Status codes per type (nodes in the state machine) |
 | `ZCASTAT_ACTION`  | Named user actions / allowed transitions           |
+| `ZCASTAT_LANE`    | Reusable ProcessFlow lane labels and positions     |
 | `ZCASTAT_FLWNODE` | Flow visualization nodes (Fiori ProcessFlow)       |
 | `ZCASTAT_FLWCONN` | Flow visualization connections                     |
 | `ZCASTAT_LOG`     | Status change audit log                            |
@@ -61,9 +62,11 @@ This matches SAP standard naming — layer type (`I`/`C`) comes before functiona
 
 Rows in the action table represent **named transitions a user can trigger** (e.g. "Submit for Approval"), not abstract graph edges. This distinction matters for UI action binding.
 
-### Re-entry via flow node decoupling
+### Simple dynamic flow and complex overrides
 
-When a document revisits a status (e.g. rejected → revised → pending again), `ZCASTAT_FLWNODE` decouples **visual position** from **business status**. The same `status_code` maps to multiple flow nodes (`N_PNDG`, `N_PNDG2`) at different `column_position` values. `ResolveFlwNodeStates` counts visits per status code and picks the Nth configured node. This avoids custom UI development — the standard Fiori ProcessFlow control renders DAGs (no backward arrows natively).
+The default flow uses `ZCASTAT_LANE`, the preferred `ZCASTAT_CODE-LANE_ID`, active actions, and log history. Each visit becomes a unique visual occurrence. Effective lane position never decreases: a rollback status stays in the current lane and renders below it. Future actions are expanded once to bound cycles.
+
+If any active `ZCASTAT_FLWNODE` exists for a status type, `ZCASTAT_FLWNODE` and `ZCASTAT_FLWCONN` become the explicit complex-layout override. The same `status_code` may then map to multiple configured nodes (`N_PNDG`, `N_PNDG2`).
 
 ### `FLW` abbreviation for flow tables
 
@@ -77,7 +80,7 @@ Removed from all CDS view key projections and association ON conditions. CDS run
 
 ## Timestamp Strategy
 
-### Config tables (`ZCASTAT_TYPE`, `ZCASTAT_CODE`, `ZCASTAT_ACTION`, `ZCASTAT_FLWNODE`, `ZCASTAT_FLWCONN`)
+### Config tables (`ZCASTAT_TYPE`, `ZCASTAT_CODE`, `ZCASTAT_ACTION`, `ZCASTAT_LANE`, `ZCASTAT_FLWNODE`, `ZCASTAT_FLWCONN`)
 
 Two fields: `created_at UTCLONG`, `changed_at UTCLONG`.
 
@@ -143,7 +146,7 @@ METHOD ChangeStatus
 
 ## Fiori ProcessFlow — Swimlane Support
 
-Flow nodes in `ZCASTAT_FLWNODE` carry a `lane_id` for swimlane grouping (e.g. "Requester", "Approver", "Finance"). The Fiori ProcessFlow SAPUI5 control renders lanes natively — no custom development needed.
+`ZCASTAT_LANE` defines lane IDs, labels, icons, and positions. In simple mode each status selects its preferred lane through `ZCASTAT_CODE-LANE_ID`. Complex override nodes retain their own `lane_id` and `column_position`.
 
 ---
 
@@ -153,7 +156,7 @@ Flow nodes in `ZCASTAT_FLWNODE` carry a `lane_id` for swimlane grouping (e.g. "R
 z-status-framework/
 ├── src/
 │   ├── ddic/
-│   │   ├── tables/       ← ZCASTAT_TYPE, _CODE, _ACTION, _FLWNODE, _FLWCONN, _LOG
+│   │   ├── tables/       ← ZCASTAT_TYPE, _CODE, _ACTION, _LANE, _FLWNODE, _FLWCONN, _LOG
 │   │   ├── domains/      ← ZCAST_STAT_CODE, ZCAST_OBJ_TYPE, ZCAST_ACTION_CODE
 │   │   ├── dtel/         ← reusable data elements
 │   │   └── structures/   ← shared ABAP type definitions

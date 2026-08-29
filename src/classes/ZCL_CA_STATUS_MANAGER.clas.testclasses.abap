@@ -32,15 +32,23 @@ CLASS ltc_status_manager DEFINITION FINAL
       IMPORTING
         iv_number TYPE int8
         iv_from   TYPE ZCA_DE_stat_code DEFAULT space
-        iv_to     TYPE ZCA_DE_stat_code.
+        iv_to     TYPE ZCA_DE_stat_code
+        iv_comments TYPE string OPTIONAL.
 
     METHODS insert_status_code
       IMPORTING
         iv_code        TYPE ZCA_DE_stat_code
         iv_text        TYPE string
+        iv_lane        TYPE string       DEFAULT 'DEFAULT'
         iv_initial     TYPE abap_boolean DEFAULT abap_false
         iv_final       TYPE abap_boolean DEFAULT abap_false
         iv_criticality TYPE int1         DEFAULT 0.
+
+    METHODS insert_lane
+      IMPORTING
+        iv_lane     TYPE string
+        iv_text     TYPE string
+        iv_position TYPE int2.
 
     METHODS insert_flow_node
       IMPORTING
@@ -73,6 +81,8 @@ CLASS ltc_status_manager DEFINITION FINAL
     METHODS flow_before_history         FOR TESTING.
     METHODS flow_history_states         FOR TESTING.
     METHODS flow_reentry_uses_next_node FOR TESTING.
+    METHODS dynamic_flow_before_history FOR TESTING.
+    METHODS dynamic_rollback_stays_lane FOR TESTING.
 
 ENDCLASS.
 
@@ -87,6 +97,7 @@ CLASS ltc_status_manager IMPLEMENTATION.
         ( 'ZI_CA_FLWNODE'      )
         ( 'ZI_CA_FLWCONN'      )
         ( 'ZI_CA_STATUSCODE'   )
+        ( 'ZI_CA_FLWLANE'      )
       )
     ).
   ENDMETHOD.
@@ -113,6 +124,7 @@ CLASS ltc_status_manager IMPLEMENTATION.
       status_type = gc_type
       from_status = iv_from
       to_status   = iv_to
+      comments    = iv_comments
       action_code = iv_code
       is_active   = iv_active
     ) INTO TABLE lt.
@@ -140,10 +152,23 @@ CLASS ltc_status_manager IMPLEMENTATION.
       status_type = gc_type
       status_code = iv_code
       status_text = iv_text
+      lane_id     = iv_lane
       criticality = iv_criticality
       is_initial  = iv_initial
       is_final    = iv_final
       is_active   = abap_true
+    ) INTO TABLE lt.
+    env->insert_test_data( lt ).
+  ENDMETHOD.
+
+  METHOD insert_lane.
+    DATA lt TYPE TABLE OF zcastat_lane.
+    INSERT VALUE #(
+      status_type  = gc_type
+      lane_id      = iv_lane
+      lane_text    = iv_text
+      lane_position = iv_position
+      is_active    = abap_true
     ) INTO TABLE lt.
     env->insert_test_data( lt ).
   ENDMETHOD.
@@ -486,6 +511,8 @@ CLASS ltc_status_manager IMPLEMENTATION.
         data        = ls_flow ).
 
     cl_abap_unit_assert=>assert_equals( act = lines( ls_flow-nodes ) exp = 2 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-configuration_mode exp = 'OVERRIDE' ).
     cl_abap_unit_assert=>assert_equals( act = lines( ls_flow-lanes ) exp = 2 ).
     cl_abap_unit_assert=>assert_equals( act = ls_flow-current_status exp = 'NEW' ).
     cl_abap_unit_assert=>assert_equals(
@@ -556,6 +583,82 @@ CLASS ltc_status_manager IMPLEMENTATION.
       act = ls_flow-nodes[ node_id = 'N_SUBM2' ]-state exp = 'Neutral' ).
     cl_abap_unit_assert=>assert_equals(
       act = ls_flow-nodes[ node_id = 'N_SUBM2' ]-visit_number exp = 2 ).
+  ENDMETHOD.
+
+  METHOD dynamic_flow_before_history.
+    insert_lane( iv_lane = 'REQUEST' iv_text = 'Request' iv_position = 1 ).
+    insert_lane( iv_lane = 'APPROVAL' iv_text = 'Approval' iv_position = 2 ).
+    insert_lane( iv_lane = 'COMPLETE' iv_text = 'Complete' iv_position = 3 ).
+    insert_status_code( iv_code = 'NEW' iv_text = 'New'
+      iv_lane = 'REQUEST' iv_initial = abap_true ).
+    insert_status_code( iv_code = gc_subm iv_text = 'Submitted'
+      iv_lane = 'APPROVAL' ).
+    insert_status_code( iv_code = gc_appr iv_text = 'Approved'
+      iv_lane = 'COMPLETE' iv_final = abap_true iv_criticality = 3 ).
+    insert_action( iv_from = 'NEW' iv_to = gc_subm iv_code = 'SUBMIT' ).
+    insert_action( iv_from = gc_subm iv_to = gc_appr iv_code = gc_approve ).
+
+    DATA(lv_json) = cut->get_process_flow_json(
+      iv_status_type = gc_type
+      iv_object_key  = gc_key ).
+    DATA ls_flow TYPE zcl_ca_status_manager=>ty_process_flow.
+    /ui2/cl_json=>deserialize(
+      EXPORTING json = lv_json pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+      CHANGING data = ls_flow ).
+
+    cl_abap_unit_assert=>assert_equals( act = lines( ls_flow-lanes ) exp = 3 ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-configuration_mode exp = 'DYNAMIC' ).
+    cl_abap_unit_assert=>assert_equals( act = ls_flow-current_status exp = 'NEW' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = 'NEW' ]-state exp = 'Neutral' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = gc_subm ]-state exp = 'Planned' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = gc_appr ]-lane_id exp = 'COMPLETE' ).
+  ENDMETHOD.
+
+  METHOD dynamic_rollback_stays_lane.
+    insert_lane( iv_lane = 'REQUEST' iv_text = 'Request' iv_position = 1 ).
+    insert_lane( iv_lane = 'APPROVAL' iv_text = 'Approval' iv_position = 2 ).
+    insert_lane( iv_lane = 'COMPLETE' iv_text = 'Complete' iv_position = 3 ).
+    insert_status_code( iv_code = 'NEW' iv_text = 'New'
+      iv_lane = 'REQUEST' iv_initial = abap_true ).
+    insert_status_code( iv_code = gc_subm iv_text = 'Pending'
+      iv_lane = 'APPROVAL' ).
+    insert_status_code( iv_code = gc_rjct iv_text = 'Rejected'
+      iv_lane = 'APPROVAL' iv_criticality = 1 ).
+    insert_status_code( iv_code = 'REVISED' iv_text = 'Revised'
+      iv_lane = 'REQUEST' ).
+    insert_status_code( iv_code = gc_appr iv_text = 'Approved'
+      iv_lane = 'COMPLETE' iv_final = abap_true iv_criticality = 3 ).
+    insert_action( iv_from = 'REVISED' iv_to = gc_subm iv_code = 'RESUBMIT' ).
+    insert_action( iv_from = gc_subm iv_to = gc_appr iv_code = gc_approve ).
+    insert_log( iv_number = 1 iv_from = 'NEW' iv_to = gc_subm ).
+    insert_log( iv_number = 2 iv_from = gc_subm iv_to = gc_rjct ).
+    insert_log( iv_number = 3 iv_from = gc_rjct iv_to = 'REVISED'
+      iv_comments = 'Corrected and ready for another review' ).
+
+    DATA(lv_json) = cut->get_process_flow_json(
+      iv_status_type = gc_type
+      iv_object_key  = gc_key ).
+    DATA ls_flow TYPE zcl_ca_status_manager=>ty_process_flow.
+    /ui2/cl_json=>deserialize(
+      EXPORTING json = lv_json pretty_name = /ui2/cl_json=>pretty_mode-camel_case
+      CHANGING data = ls_flow ).
+
+    cl_abap_unit_assert=>assert_equals( act = ls_flow-current_status exp = 'REVISED' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = 'REVISED' ]-lane_id exp = 'APPROVAL'
+      msg = 'Rollback status must stay in the current lane' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = 'REVISED' ]-comments
+      exp = 'Corrected and ready for another review' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = 'SUBM_2' ]-lane_id exp = 'APPROVAL'
+      msg = 'Repeated future status must continue downward in the same lane' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = ls_flow-nodes[ node_id = 'SUBM_2' ]-state exp = 'Planned' ).
   ENDMETHOD.
 
 ENDCLASS.

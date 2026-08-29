@@ -53,15 +53,15 @@ SAP S/4HANA · ABAP RESTful Application Programming Model
 
 ---
 
-## Repository manifest — 35 objects
+## Repository manifest — 37 objects
 
 | Category                | Objects                                                                           | Count |
 | ----------------------- | --------------------------------------------------------------------------------- | ----- |
 | Domains                 | ZCA_DO_STAT_TYPE · ZCA_DO_STAT_CODE · ZCA_DO_STAT_OBJ_KEY                         | 3     |
-| Data elements           | ZCA_DE_STAT_TYPE · ZCA_DE_STAT_CODE · ZCA_DE_STAT_TYPE_DESC · ZCA_DE_STAT_OBJ_KEY | 4     |
-| Tables                  | ZCASTAT_TYPE · CODE · ACTION · FLWNODE · FLWCONN · LOG                            | 6     |
-| Draft stubs             | ZCASTAT_TYPE_D · CODE_D · ACTION_D · FLWNOD_D · FLWCN_D                           | 5     |
-| CDS views               | ZI_CA_StatusType · Code · Action · FlwNode · FlwConn · StatusLog                  | 6     |
+| Data elements           | ZCA_DE_STAT_TYPE · STAT_CODE · STAT_TYPE_DESC · STAT_OBJ_KEY · ACTION_CODE · COMMENTS · STAT_NEW | 7 |
+| Tables                  | ZCASTAT_TYPE · CODE · ACTION · LANE · FLWNODE · FLWCONN · LOG                     | 7     |
+| Draft stubs             | ZCASTAT_TYPE_D · CODE_D · ACTION_D · LANE_D · FLWNOD_D · FLWCN_D                  | 6     |
+| CDS views               | ZI_CA_StatusType · Code · Action · FlwLane · FlwNode · FlwConn · StatusLog · ZC_CA_StatusCode | 8 |
 | Behavior definitions    | ZBD_CA_StatusType · ZBD_CA_StatusAction                                           | 2     |
 | Behavior implementation | ZBP_CA_STATUSTYPE                                                                 | 1     |
 | BAdI interface          | ZIFI_CA_STAT_TRANSITION                                                           | 1     |
@@ -78,11 +78,11 @@ SAP S/4HANA · ABAP RESTful Application Programming Model
 
 ### 2. Tables (SE11)
 
-ZCASTAT_TYPE → ZCASTAT_CODE → ZCASTAT_ACTION → ZCASTAT_FLWNODE → ZCASTAT_FLWCONN → ZCASTAT_LOG
+ZCASTAT_TYPE → ZCASTAT_LANE → ZCASTAT_CODE → ZCASTAT_ACTION → ZCASTAT_FLWNODE → ZCASTAT_FLWCONN → ZCASTAT_LOG
 
 | Table                                    | Delivery class | Table type |
 | ---------------------------------------- | -------------- | ---------- |
-| ZCASTAT_TYPE/CODE/ACTION/FLWNODE/FLWCONN | C              | CUST       |
+| ZCASTAT_TYPE/CODE/ACTION/LANE/FLWNODE/FLWCONN | C          | CUST       |
 | ZCASTAT_LOG                              | A              | APPL0      |
 
 ### 3. Manual prerequisites (SE11 / SNRO / SE19 / SE91)
@@ -112,7 +112,7 @@ Six texts: CONCURRENT_LOCK · AMBIGUOUS_ACTION · NO_VALID_ACTION · INVALID_TRA
 
 ### 5. CDS views (ADT)
 
-`ZI_CA_StatusCode` → `ZI_CA_FlwNode` → `ZI_CA_FlwConn` → `ZI_CA_StatusType` → `ZI_CA_StatusAction` → `ZI_CA_StatusLog`
+Mass-activate `ZI_CA_FlwLane`, `ZI_CA_StatusCode`, `ZI_CA_FlwNode`, `ZI_CA_FlwConn`, `ZI_CA_StatusType`, `ZI_CA_StatusAction`, `ZI_CA_StatusLog`, and `ZC_CA_StatusCode`.
 
 ### 6. Behavior definitions (ADT — generates draft tables)
 

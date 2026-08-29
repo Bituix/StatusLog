@@ -22,8 +22,26 @@ define behavior for ZI_CA_StatusType alias StatusType
   determination stamp_audit_fields on modify { create; update; }
 
   association _StatusCode { create; with draft; }
+  association _FlwLane    { create; with draft; }
   association _FlwNode    { create; with draft; }
   association _FlwConn    { create; with draft; }
+}
+
+define behavior for ZI_CA_FlwLane alias FlowLane
+  persistent table zcastat_lane
+  draft table      zcastat_lane_d
+  lock dependent by _StatusType
+  authorization dependent by _StatusType
+  etag dependent by _StatusType
+{
+  update; delete;
+
+  field ( mandatory ) StatusType, LaneId, LaneText, LanePosition;
+  field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
+
+  determination stamp_audit_fields on modify { create; update; }
+
+  association _StatusType { with draft; }
 }
 
 define behavior for ZI_CA_StatusCode alias StatusCode
@@ -35,7 +53,7 @@ define behavior for ZI_CA_StatusCode alias StatusCode
 {
   update; delete;
 
-  field ( mandatory ) StatusType, StatusCode, StatusText;
+  field ( mandatory ) StatusType, StatusCode, StatusText, LaneId;
   field ( readonly )  CreatedBy, CreatedAt, ChangedBy, ChangedAt;
 
   determination stamp_audit_fields on modify { create; update; }

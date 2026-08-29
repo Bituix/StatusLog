@@ -37,6 +37,9 @@ CLASS ZCL_CA_STATUS_MANAGER DEFINITION
         status_code        TYPE string,
         visit_number       TYPE i,
         log_number         TYPE int8,
+        comments           TYPE string,
+        changed_by         TYPE string,
+        changed_at         TYPE string,
       END OF ty_process_flow_node,
       ty_process_flow_nodes TYPE STANDARD TABLE OF ty_process_flow_node WITH EMPTY KEY,
 
@@ -60,6 +63,7 @@ CLASS ZCL_CA_STATUS_MANAGER DEFINITION
       BEGIN OF ty_process_flow,
         status_type    TYPE string,
         object_key     TYPE string,
+        configuration_mode TYPE string,
         current_status TYPE string,
         lanes          TYPE ty_process_flow_lanes,
         nodes          TYPE ty_process_flow_nodes,
@@ -116,6 +120,20 @@ CLASS ZCL_CA_STATUS_MANAGER DEFINITION
         VALUE(rv_allowed) TYPE abap_boolean.
 
   PRIVATE SECTION.
+
+    METHODS build_dynamic_process_flow
+      IMPORTING
+        iv_status_type TYPE ZCA_DE_stat_type
+        iv_object_key  TYPE ZCA_DE_stat_obj_key
+      RETURNING
+        VALUE(rs_flow) TYPE ty_process_flow.
+
+    METHODS build_configured_process_flow
+      IMPORTING
+        iv_status_type TYPE ZCA_DE_stat_type
+        iv_object_key  TYPE ZCA_DE_stat_obj_key
+      RETURNING
+        VALUE(rs_flow) TYPE ty_process_flow.
 
     METHODS resolve_current_status
       IMPORTING
@@ -313,10 +331,328 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
 
 
   METHOD get_process_flow_json.
+    SELECT SINGLE @abap_true
+      FROM ZI_CA_FlwNode
+      WHERE StatusType = @iv_status_type
+        AND IsActive   = @abap_true
+      INTO @DATA(lv_has_visual_override).
+
+    DATA(ls_flow) = COND ty_process_flow(
+      WHEN lv_has_visual_override = abap_true
+      THEN build_configured_process_flow(
+             iv_status_type = iv_status_type
+             iv_object_key  = iv_object_key )
+      ELSE build_dynamic_process_flow(
+             iv_status_type = iv_status_type
+             iv_object_key  = iv_object_key ) ).
+
+    rv_json = /ui2/cl_json=>serialize(
+      data        = ls_flow
+      compress    = abap_true
+      pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+  ENDMETHOD.
+
+
+  METHOD build_dynamic_process_flow.
+    TYPES:
+      BEGIN OF ty_visit,
+        status_code TYPE ZCA_DE_stat_code,
+        log_number  TYPE int8,
+        comments    TYPE string,
+        changed_by  TYPE syuname,
+        changed_at  TYPE utclong,
+      END OF ty_visit,
+      ty_visits TYPE STANDARD TABLE OF ty_visit WITH EMPTY KEY,
+
+      BEGIN OF ty_visit_count,
+        status_code TYPE ZCA_DE_stat_code,
+        count       TYPE i,
+      END OF ty_visit_count,
+      ty_visit_counts TYPE HASHED TABLE OF ty_visit_count
+        WITH UNIQUE KEY status_code,
+
+      BEGIN OF ty_queue_entry,
+        node_id       TYPE string,
+        status_code   TYPE ZCA_DE_stat_code,
+        lane_id       TYPE string,
+        lane_position TYPE int2,
+      END OF ty_queue_entry,
+      ty_queue TYPE STANDARD TABLE OF ty_queue_entry WITH EMPTY KEY,
+      ty_expanded_edges TYPE HASHED TABLE OF string WITH UNIQUE KEY table_line.
+
+    DATA ls_flow TYPE ty_process_flow.
+    DATA lt_lanes TYPE STANDARD TABLE OF zcastat_lane WITH EMPTY KEY.
+    DATA lt_status_codes TYPE STANDARD TABLE OF zcastat_code WITH EMPTY KEY.
+    DATA lt_actions TYPE STANDARD TABLE OF zcastat_action WITH EMPTY KEY.
+    DATA lt_visits TYPE ty_visits.
+    DATA lt_visit_counts TYPE ty_visit_counts.
+    DATA lt_queue TYPE ty_queue.
+    DATA lt_expanded_edges TYPE ty_expanded_edges.
+
+    ls_flow-status_type = iv_status_type.
+    ls_flow-object_key = iv_object_key.
+    ls_flow-configuration_mode = 'DYNAMIC'.
+
+    SELECT StatusType  AS status_type,
+           LaneId      AS lane_id,
+           LaneText    AS lane_text,
+           LanePosition AS lane_position,
+           IconSrc     AS icon_src,
+           IsActive    AS is_active
+      FROM ZI_CA_FlwLane
+      WHERE StatusType = @iv_status_type
+        AND IsActive   = @abap_true
+      ORDER BY LanePosition ASCENDING,
+               LaneId ASCENDING
+      INTO CORRESPONDING FIELDS OF TABLE @lt_lanes.
+
+    LOOP AT lt_lanes INTO DATA(ls_lane).
+      APPEND VALUE #(
+        lane_id  = ls_lane-lane_id
+        icon_src = ls_lane-icon_src
+        text     = ls_lane-lane_text
+        position = ls_lane-lane_position
+      ) TO ls_flow-lanes.
+    ENDLOOP.
+
+    SELECT StatusType  AS status_type,
+           StatusCode  AS status_code,
+           StatusText  AS status_text,
+           LaneId      AS lane_id,
+           Criticality AS criticality,
+           IsInitial   AS is_initial,
+           IsFinal     AS is_final,
+           IsActive    AS is_active
+      FROM ZI_CA_StatusCode
+      WHERE StatusType = @iv_status_type
+        AND IsActive   = @abap_true
+      INTO CORRESPONDING FIELDS OF TABLE @lt_status_codes.
+
+    SELECT StatusType AS status_type,
+           FromStatus AS from_status,
+           ToStatus   AS to_status,
+           ActionCode AS action_code,
+           IsActive   AS is_active
+      FROM ZI_CA_StatusAction
+      WHERE StatusType = @iv_status_type
+        AND IsActive   = @abap_true
+      INTO CORRESPONDING FIELDS OF TABLE @lt_actions.
+
+    DATA(lt_log) = get_log(
+      iv_status_type = iv_status_type
+      iv_object_key  = iv_object_key ).
+
+    LOOP AT lt_log INTO DATA(ls_log).
+      APPEND VALUE #(
+        log_number  = ls_log-log_number
+        from_status = ls_log-from_status
+        to_status   = ls_log-to_status
+        action_code = ls_log-action_code
+        comments    = ls_log-comments
+        changed_by  = ls_log-changed_by
+        changed_at  = |{ ls_log-changed_at }|
+      ) TO ls_flow-history.
+    ENDLOOP.
+
+    IF lt_log IS NOT INITIAL.
+      DATA(ls_first_log) = lt_log[ 1 ].
+      IF ls_first_log-from_status IS NOT INITIAL.
+        APPEND VALUE #( status_code = ls_first_log-from_status ) TO lt_visits.
+      ENDIF.
+      LOOP AT lt_log INTO ls_log.
+        APPEND VALUE #(
+          status_code = ls_log-to_status
+          log_number  = ls_log-log_number
+          comments    = ls_log-comments
+          changed_by  = ls_log-changed_by
+          changed_at  = ls_log-changed_at
+        ) TO lt_visits.
+      ENDLOOP.
+    ELSE.
+      READ TABLE lt_status_codes INTO DATA(ls_initial_code)
+        WITH KEY is_initial = abap_true.
+      IF sy-subrc = 0.
+        APPEND VALUE #( status_code = ls_initial_code-status_code ) TO lt_visits.
+      ENDIF.
+    ENDIF.
+
+    DATA(lv_previous_lane_position) = CONV int2( 0 ).
+    DATA(lv_previous_lane_id) = VALUE string( ).
+    DATA(lv_previous_node_id) = VALUE string( ).
+    DATA(lv_current_visit_index) = lines( lt_visits ).
+
+    LOOP AT lt_visits INTO DATA(ls_visit).
+      DATA(lv_visit_index) = sy-tabix.
+      ASSIGN lt_visit_counts[ status_code = ls_visit-status_code ]
+        TO FIELD-SYMBOL(<ls_visit_count>).
+      IF sy-subrc <> 0.
+        INSERT VALUE #( status_code = ls_visit-status_code )
+          INTO TABLE lt_visit_counts ASSIGNING <ls_visit_count>.
+      ENDIF.
+      <ls_visit_count>-count = <ls_visit_count>-count + 1.
+
+      READ TABLE lt_status_codes INTO DATA(ls_status_code)
+        WITH KEY status_code = ls_visit-status_code.
+      READ TABLE lt_lanes INTO DATA(ls_preferred_lane)
+        WITH KEY lane_id = ls_status_code-lane_id.
+
+      DATA(lv_effective_lane_position) = ls_preferred_lane-lane_position.
+      DATA(lv_effective_lane_id) = CONV string( ls_preferred_lane-lane_id ).
+      IF lv_effective_lane_position < lv_previous_lane_position.
+        lv_effective_lane_position = lv_previous_lane_position.
+        lv_effective_lane_id = lv_previous_lane_id.
+      ENDIF.
+
+      DATA(lv_node_id) = COND string(
+        WHEN <ls_visit_count>-count = 1
+        THEN CONV string( ls_visit-status_code )
+        ELSE |{ ls_visit-status_code }_{ <ls_visit_count>-count }| ).
+      DATA(lv_is_current) = xsdbool( lv_visit_index = lv_current_visit_index ).
+      DATA(lv_state) = COND string(
+        WHEN ls_status_code-criticality = 1 THEN 'Negative'
+        WHEN lv_is_current = abap_true
+          AND ( ls_status_code-criticality = 3
+             OR ls_status_code-is_final = abap_true ) THEN 'Positive'
+        WHEN lv_is_current = abap_true THEN 'Neutral'
+        ELSE 'Positive' ).
+      DATA(lv_state_text) = COND string(
+        WHEN lv_is_current = abap_true THEN 'Current'
+        ELSE 'Completed' ).
+      DATA(lt_texts) = VALUE ty_string_table(
+        ( CONV string( ls_visit-status_code ) ) ).
+      IF ls_visit-comments IS NOT INITIAL.
+        APPEND CONV string( ls_visit-comments ) TO lt_texts.
+      ELSEIF ls_visit-changed_by IS NOT INITIAL.
+        APPEND |Changed by { ls_visit-changed_by }| TO lt_texts.
+      ENDIF.
+
+      APPEND VALUE #(
+        node_id            = lv_node_id
+        lane_id            = lv_effective_lane_id
+        title              = ls_status_code-status_text
+        title_abbreviation = ls_visit-status_code
+        state              = lv_state
+        state_text         = lv_state_text
+        texts              = lt_texts
+        focused            = lv_is_current
+        status_code        = ls_visit-status_code
+        visit_number       = <ls_visit_count>-count
+        log_number         = ls_visit-log_number
+        comments           = ls_visit-comments
+        changed_by         = ls_visit-changed_by
+        changed_at         = |{ ls_visit-changed_at }|
+      ) TO ls_flow-nodes.
+
+      IF lv_previous_node_id IS NOT INITIAL.
+        ASSIGN ls_flow-nodes[ node_id = lv_previous_node_id ]
+          TO FIELD-SYMBOL(<ls_previous_node>).
+        APPEND lv_node_id TO <ls_previous_node>-children.
+        APPEND VALUE #(
+          from_node_id = lv_previous_node_id
+          to_node_id   = lv_node_id
+        ) TO ls_flow-connections.
+      ENDIF.
+
+      lv_previous_lane_position = lv_effective_lane_position.
+      lv_previous_lane_id = lv_effective_lane_id.
+      lv_previous_node_id = lv_node_id.
+      IF lv_is_current = abap_true.
+        ls_flow-current_status = ls_visit-status_code.
+        APPEND VALUE #(
+          node_id       = lv_node_id
+          status_code   = ls_visit-status_code
+          lane_id       = lv_effective_lane_id
+          lane_position = lv_effective_lane_position
+        ) TO lt_queue.
+      ENDIF.
+    ENDLOOP.
+
+    "Expand every configured action once from the current occurrence. This
+    "shows the future graph while bounding cyclic status configurations.
+    DATA(lv_queue_index) = 1.
+    WHILE lv_queue_index <= lines( lt_queue ).
+      READ TABLE lt_queue INTO DATA(ls_queue) INDEX lv_queue_index.
+      lv_queue_index = lv_queue_index + 1.
+
+      LOOP AT lt_actions INTO DATA(ls_action)
+        WHERE from_status = ls_queue-status_code.
+        DATA(lv_edge_key) = |{ ls_action-from_status }| &&
+                            |>{ ls_action-to_status }| &&
+                            |:{ ls_action-action_code }|.
+        IF line_exists( lt_expanded_edges[ table_line = lv_edge_key ] ).
+          CONTINUE.
+        ENDIF.
+        INSERT lv_edge_key INTO TABLE lt_expanded_edges.
+
+        READ TABLE lt_status_codes INTO ls_status_code
+          WITH KEY status_code = ls_action-to_status.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+        READ TABLE lt_lanes INTO ls_preferred_lane
+          WITH KEY lane_id = ls_status_code-lane_id.
+        IF sy-subrc <> 0.
+          CONTINUE.
+        ENDIF.
+
+        ASSIGN lt_visit_counts[ status_code = ls_action-to_status ]
+          TO <ls_visit_count>.
+        IF sy-subrc <> 0.
+          INSERT VALUE #( status_code = ls_action-to_status )
+            INTO TABLE lt_visit_counts ASSIGNING <ls_visit_count>.
+        ENDIF.
+        <ls_visit_count>-count = <ls_visit_count>-count + 1.
+
+        lv_effective_lane_position = ls_preferred_lane-lane_position.
+        lv_effective_lane_id = ls_preferred_lane-lane_id.
+        IF lv_effective_lane_position < ls_queue-lane_position.
+          lv_effective_lane_position = ls_queue-lane_position.
+          lv_effective_lane_id = ls_queue-lane_id.
+        ENDIF.
+
+        lv_node_id = COND string(
+          WHEN <ls_visit_count>-count = 1
+          THEN CONV string( ls_action-to_status )
+          ELSE |{ ls_action-to_status }_{ <ls_visit_count>-count }| ).
+
+        APPEND VALUE #(
+          node_id            = lv_node_id
+          lane_id            = lv_effective_lane_id
+          title              = ls_status_code-status_text
+          title_abbreviation = ls_action-to_status
+          state              = 'Planned'
+          state_text         = 'Planned'
+          texts              = VALUE #( ( CONV string( ls_action-to_status ) ) )
+          status_code        = ls_action-to_status
+          visit_number       = <ls_visit_count>-count
+        ) TO ls_flow-nodes.
+
+        ASSIGN ls_flow-nodes[ node_id = ls_queue-node_id ]
+          TO FIELD-SYMBOL(<ls_source_node>).
+        APPEND lv_node_id TO <ls_source_node>-children.
+        APPEND VALUE #(
+          from_node_id = ls_queue-node_id
+          to_node_id   = lv_node_id
+        ) TO ls_flow-connections.
+        APPEND VALUE #(
+          node_id       = lv_node_id
+          status_code   = ls_action-to_status
+          lane_id       = lv_effective_lane_id
+          lane_position = lv_effective_lane_position
+        ) TO lt_queue.
+      ENDLOOP.
+    ENDWHILE.
+
+    rs_flow = ls_flow.
+  ENDMETHOD.
+
+
+  METHOD build_configured_process_flow.
     TYPES:
       BEGIN OF ty_visit,
         status_code  TYPE ZCA_DE_stat_code,
         log_number   TYPE int8,
+        comments     TYPE string,
         changed_by   TYPE syuname,
         changed_at   TYPE utclong,
         visit_number TYPE i,
@@ -334,11 +670,13 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
     DATA lt_nodes TYPE STANDARD TABLE OF zcastat_flwnode WITH EMPTY KEY.
     DATA lt_connections TYPE STANDARD TABLE OF zcastat_flwconn WITH EMPTY KEY.
     DATA lt_status_codes TYPE STANDARD TABLE OF zcastat_code WITH EMPTY KEY.
+    DATA lt_lanes TYPE STANDARD TABLE OF zcastat_lane WITH EMPTY KEY.
     DATA lt_visits TYPE ty_visits.
     DATA lt_visit_counts TYPE ty_visit_counts.
 
     ls_flow-status_type = iv_status_type.
     ls_flow-object_key = iv_object_key.
+    ls_flow-configuration_mode = 'OVERRIDE'.
 
     "The complete active configuration is returned, including future nodes.
     SELECT StatusType     AS status_type,
@@ -376,6 +714,17 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
         AND IsActive   = @abap_true
       INTO CORRESPONDING FIELDS OF TABLE @lt_status_codes.
 
+    SELECT StatusType   AS status_type,
+           LaneId       AS lane_id,
+           LaneText     AS lane_text,
+           LanePosition AS lane_position,
+           IconSrc      AS icon_src,
+           IsActive     AS is_active
+      FROM ZI_CA_FlwLane
+      WHERE StatusType = @iv_status_type
+        AND IsActive   = @abap_true
+      INTO CORRESPONDING FIELDS OF TABLE @lt_lanes.
+
     "A lane is inferred from the node configuration. All nodes sharing a
     "LANE_ID must use the same COLUMN_POSITION.
     LOOP AT lt_nodes INTO DATA(ls_config_node).
@@ -385,11 +734,22 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
         ELSE |COL_{ ls_config_node-column_position }| ).
 
       IF NOT line_exists( ls_flow-lanes[ lane_id = lv_lane_id ] ).
-        APPEND VALUE #(
-          lane_id  = lv_lane_id
-          text     = lv_lane_id
-          position = ls_config_node-column_position
-        ) TO ls_flow-lanes.
+        READ TABLE lt_lanes INTO DATA(ls_config_lane)
+          WITH KEY lane_id = lv_lane_id.
+        IF sy-subrc = 0.
+          APPEND VALUE #(
+            lane_id  = lv_lane_id
+            icon_src = ls_config_lane-icon_src
+            text     = ls_config_lane-lane_text
+            position = ls_config_lane-lane_position
+          ) TO ls_flow-lanes.
+        ELSE.
+          APPEND VALUE #(
+            lane_id  = lv_lane_id
+            text     = lv_lane_id
+            position = ls_config_node-column_position
+          ) TO ls_flow-lanes.
+        ENDIF.
       ENDIF.
 
       DATA(lt_children) = VALUE ty_string_table( ).
@@ -451,6 +811,7 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
         APPEND VALUE #(
           status_code = ls_log-to_status
           log_number  = ls_log-log_number
+          comments    = ls_log-comments
           changed_by  = ls_log-changed_by
           changed_at  = ls_log-changed_at
         ) TO lt_visits.
@@ -529,7 +890,15 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
 
       <ls_selected_node>-visit_number = ls_visit-visit_number.
       <ls_selected_node>-log_number = ls_visit-log_number.
-      IF ls_visit-changed_by IS NOT INITIAL.
+      <ls_selected_node>-comments = ls_visit-comments.
+      <ls_selected_node>-changed_by = ls_visit-changed_by.
+      <ls_selected_node>-changed_at = |{ ls_visit-changed_at }|.
+      IF ls_visit-comments IS NOT INITIAL.
+        <ls_selected_node>-texts = VALUE #(
+          ( CONV string( ls_visit-status_code ) )
+          ( CONV string( ls_visit-comments ) )
+        ).
+      ELSEIF ls_visit-changed_by IS NOT INITIAL.
         <ls_selected_node>-texts = VALUE #(
           ( CONV string( ls_visit-status_code ) )
           ( |Changed by { ls_visit-changed_by }| )
@@ -537,10 +906,7 @@ CLASS ZCL_CA_STATUS_MANAGER IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-    rv_json = /ui2/cl_json=>serialize(
-      data        = ls_flow
-      compress    = abap_true
-      pretty_name = /ui2/cl_json=>pretty_mode-camel_case ).
+    rs_flow = ls_flow.
   ENDMETHOD.
 
 

@@ -21,6 +21,8 @@ define view entity ZC_CA_StatusCode
       @Search.fuzzinessThreshold: 0.8
       StatusText,
 
+      LaneId,
+
       @UI.hidden: true
       Criticality,
 

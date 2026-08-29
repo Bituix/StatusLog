@@ -11,27 +11,63 @@ DATA(lv_json) = NEW zcl_ca_status_manager( )->get_process_flow_json(
 
 The complete configured graph is returned even when the object has no entries in
 `ZCASTAT_LOG`. In that case the active `ZCASTAT_CODE` marked `IS_INITIAL = 'X'`
-is shown as the current node and every other node is returned as `Planned`.
+is shown as the current node and reachable future occurrences are returned as
+`Planned`.
+The root `configurationMode` is `DYNAMIC` for the simple model and `OVERRIDE`
+when active explicit flow nodes select the complex model.
 
-## Configuration
+## Simple configuration
 
-Keep the configuration in the existing tables:
+The default mode needs only reusable lanes, statuses, and actions:
 
-1. Define the active statuses in `ZCASTAT_CODE`. Mark exactly one as initial.
-2. Define one active row in `ZCASTAT_FLWNODE` for every visual occurrence.
-3. Define the arrows in `ZCASTAT_FLWCONN`.
+1. Define lane labels and positions in `ZCASTAT_LANE`.
+2. Define active statuses in `ZCASTAT_CODE`, assign each status its preferred
+   `LANE_ID`, and mark exactly one status as initial.
+3. Define transitions in `ZCASTAT_ACTION`.
+4. Leave `ZCASTAT_FLWNODE` empty or inactive for this status type.
 
-For each flow node:
+The manager creates a unique node occurrence for every status visit and derives
+future arrows from the active actions. If a transition points to a status whose
+preferred lane is left of the current lane, the new occurrence stays in the
+current lane and is rendered below it. Effective lane positions therefore never
+decrease.
 
-- `NODE_ID` is the unique visual occurrence, for example `N_REVIEW1`.
-- `STATUS_CODE` is the business status represented by the node.
-- `NODE_TEXT` becomes the ProcessFlow node title.
-- `LANE_ID` becomes the UI5 lane ID and lane text.
-- `COLUMN_POSITION` becomes the UI5 lane position.
-- Nodes with the same `LANE_ID` must have the same `COLUMN_POSITION`.
+Example lanes:
 
-This avoids a separate lane table. Use short display-ready values such as
-`CREATE`, `REVIEW`, and `COMPLETE` for `LANE_ID`.
+| Lane ID | Text | Position |
+|---|---|---:|
+| `REQUEST` | Request | 1 |
+| `APPROVAL` | Approval | 2 |
+| `COMPLETE` | Complete | 3 |
+
+Example preferred status lanes:
+
+| Status | Preferred lane |
+|---|---|
+| `NEW` | `REQUEST` |
+| `REVISED` | `REQUEST` |
+| `PENDING` | `APPROVAL` |
+| `REJECTED` | `APPROVAL` |
+| `APPROVED` | `COMPLETE` |
+
+For history `NEW → PENDING → REJECTED → REVISED → PENDING`, the `REVISED`
+and second `PENDING` occurrences stay in `APPROVAL`; the graph never moves left.
+
+Future expansion processes each action once, so cyclic status configurations are
+shown without producing an infinite JSON graph. Real repeated visits are always
+added from `ZCASTAT_LOG`.
+
+## Complex visual override
+
+If any active `ZCASTAT_FLWNODE` exists for a status type, the manager switches
+that entire status type to configured override mode. In this mode:
+
+- `NODE_ID` is the explicit visual occurrence.
+- `STATUS_CODE` maps the occurrence to a business status.
+- `LANE_ID` and `COLUMN_POSITION` control placement.
+- `ZCASTAT_FLWCONN` supplies the explicit forward-only edges.
+
+Use this only for layouts that cannot be derived safely from lanes and actions.
 
 Example:
 
@@ -53,7 +89,7 @@ Connections:
 The output contains both branches before either branch is taken. Connections are
 also converted to the `children` array on each UI5 node.
 
-## Re-entry
+## Re-entry in complex mode
 
 If a status can be visited more than once and every occurrence should be visible,
 configure several nodes with the same `STATUS_CODE`, ordered by
